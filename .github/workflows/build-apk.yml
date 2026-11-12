@@ -113,7 +113,7 @@ jobs:
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android"
               xmlns:tools="http://schemas.android.com/tools"
-              package="com.firmware.tvunlocker">
+              >
 
               <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesCondition" />
               <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
@@ -302,7 +302,7 @@ jobs:
 
                       val knownOemTargets = listOf(
                           Pair("com.android.settings", "com.android.settings.DevelopmentSettings"),
-                          Pair("com.android.settings", "com.android.settings.Settings$DevelopmentSettingsDashboardActivity"),
+                          Pair("com.android.settings", "com.android.settings.Settings\$DevelopmentSettingsDashboardActivity"),
                           Pair("com.android.tv.settings", "com.android.tv.settings.development.DevelopmentActivity"),
                           Pair("com.cvte.tv.provision", "com.cvte.tv.provision.MainActivity"),
                           Pair("com.mstar.tv.tvplayer.ui", "com.mstar.tv.tvplayer.ui.RootActivity"),
@@ -408,7 +408,7 @@ jobs:
                   } catch (ignored: Exception) {}
                   return ""
               }
-          }
+          
           EOF_KOTLIN
 
       - name: Build Debug APK
