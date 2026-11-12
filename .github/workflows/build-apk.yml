@@ -30,6 +30,13 @@ jobs:
           mkdir -p app/src/main/java/com/firmware/tvunlocker
           mkdir -p app/src/main/res/layout
 
+          # 0. gradle.properties
+          cat << 'EOF_PROPERTIES' > gradle.properties
+          android.useAndroidX=true
+          android.nonTransitiveRClass=true
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          EOF_PROPERTIES
+
           # 1. settings.gradle
           cat << 'EOF_SETTINGS' > settings.gradle
           pluginManagement {
