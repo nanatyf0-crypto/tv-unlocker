@@ -1,0 +1,415 @@
+name: Build TV ADB Unlocker APK
+
+on:
+  push:
+    branches: [ "**" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Generate and Build APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository (Optional)
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.4'
+
+      - name: Generate Complete Android Project Files
+        run: |
+          mkdir -p app/src/main/java/com/firmware/tvunlocker
+          mkdir -p app/src/main/res/layout
+
+          # 1. settings.gradle
+          cat << 'EOF_SETTINGS' > settings.gradle
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "tv-unlocker"
+          include ':app'
+          EOF_SETTINGS
+
+          # 2. root build.gradle
+          cat << 'EOF_ROOT_GRADLE' > build.gradle
+          plugins {
+              id 'com.android.application' version '8.1.2' apply false
+              id 'org.jetbrains.kotlin.android' version '1.9.0' apply false
+          }
+          EOF_ROOT_GRADLE
+
+          # 3. app/build.gradle
+          cat << 'EOF_APP_GRADLE' > app/build.gradle
+          plugins {
+              id 'com.android.application'
+              id 'org.jetbrains.kotlin.android'
+          }
+
+          android {
+              namespace 'com.firmware.tvunlocker'
+              compileSdk 33
+
+              defaultConfig {
+                  applicationId "com.firmware.tvunlocker"
+                  minSdk 21
+                  targetSdk 33
+                  versionCode 1
+                  versionName "1.0.0"
+              }
+
+              buildTypes {
+                  release {
+                      minifyEnabled false
+                  }
+                  debug {
+                      minifyEnabled false
+                      debuggable true
+                  }
+              }
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+              kotlinOptions {
+                  jvmTarget = '17'
+              }
+          }
+
+          dependencies {
+              implementation 'androidx.core:core-ktx:1.9.0'
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+          }
+          EOF_APP_GRADLE
+
+          # 4. AndroidManifest.xml
+          cat << 'EOF_MANIFEST' > app/src/main/AndroidManifest.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:tools="http://schemas.android.com/tools"
+              package="com.firmware.tvunlocker">
+
+              <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesCondition" />
+              <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+              <uses-permission android:name="android.permission.INTERNET" />
+
+              <uses-feature android:name="android.software.leanback" android:required="false" />
+              <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+
+              <application
+                  android:allowBackup="true"
+                  android:icon="@android:drawable/sym_def_app_icon"
+                  android:label="TV ADB Unlocker"
+                  android:theme="@style/Theme.AppCompat.NoActionBar"
+                  android:supportsRtl="true">
+
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:screenOrientation="landscape"
+                      android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize">
+
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF_MANIFEST
+
+          # 5. activity_main.xml
+          cat << 'EOF_LAYOUT' > app/src/main/res/layout/activity_main.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical"
+              android:background="#000000"
+              android:gravity="center"
+              android:padding="30dp">
+
+              <TextView
+                  android:id="@+id/tvTitle"
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:text="مكتشف ومفعل ADB وخيارات المطورين"
+                  android:textColor="#00FF66"
+                  android:textSize="26sp"
+                  android:textStyle="bold"
+                  android:layout_marginBottom="12dp" />
+
+              <TextView
+                  android:id="@+id/tvIp"
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:text="IP التلفزيون: جاري الكشف..."
+                  android:textColor="#FFFFFF"
+                  android:textSize="18sp"
+                  android:layout_marginBottom="30dp" />
+
+              <Button
+                  android:id="@+id/btnStartScan"
+                  android:layout_width="320dp"
+                  android:layout_height="65dp"
+                  android:text="ابدأ الفحص والتفعيل الآن"
+                  android:textSize="20sp"
+                  android:textStyle="bold"
+                  android:textColor="#000000"
+                  android:background="#00FF66"
+                  android:focusable="true"
+                  android:layout_marginBottom="25dp" />
+
+              <TextView
+                  android:id="@+id/tvStatus"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:gravity="center"
+                  android:text="اضغط الزر الأخضر للبدء في تفتيش صفحات النظام"
+                  android:textColor="#FFFF00"
+                  android:textSize="18sp"
+                  android:layout_marginBottom="10dp" />
+
+              <TextView
+                  android:id="@+id/tvCurrentActivity"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:gravity="center"
+                  android:text="في انتظار البدء..."
+                  android:textColor="#AAAAAA"
+                  android:textSize="14sp" />
+
+          </LinearLayout>
+          EOF_LAYOUT
+
+          # 6. MainActivity.kt
+          cat << 'EOF_KOTLIN' > app/src/main/java/com/firmware/tvunlocker/MainActivity.kt
+          package com.firmware.tvunlocker
+
+          import android.content.ComponentName
+          import android.content.Intent
+          import android.content.pm.PackageManager
+          import android.os.Bundle
+          import android.os.Handler
+          import android.os.Looper
+          import android.provider.Settings
+          import android.widget.Button
+          import android.widget.TextView
+          import android.widget.Toast
+          import androidx.appcompat.app.AppCompatActivity
+          import java.net.Inet4Address
+          import java.net.NetworkInterface
+          import java.util.Locale
+
+          class MainActivity : AppCompatActivity() {
+
+              private lateinit var tvIp: TextView
+              private lateinit var btnStartScan: Button
+              private lateinit var tvStatus: TextView
+              private lateinit var tvCurrentActivity: TextView
+
+              private val candidateActivities = mutableListOf<Pair<String, String>>()
+              private var candidateIndex = 0
+              private var isScanning = false
+              private val mainHandler = Handler(Looper.getMainLooper())
+
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  setContentView(R.layout.activity_main)
+
+                  tvIp = findViewById(R.id.tvIp)
+                  btnStartScan = findViewById(R.id.btnStartScan)
+                  tvStatus = findViewById(R.id.tvStatus)
+                  tvCurrentActivity = findViewById(R.id.tvCurrentActivity)
+
+                  btnStartScan.requestFocus()
+                  detectTvIpAddress()
+
+                  btnStartScan.setOnClickListener {
+                      if (!isScanning && candidateActivities.isEmpty()) {
+                          startDeepScan()
+                      } else {
+                          launchNextCandidate()
+                      }
+                  }
+              }
+
+              private fun detectTvIpAddress() {
+                  val ip = getActiveIpAddress()
+                  if (ip.isNotEmpty()) {
+                      tvIp.text = "IP الجهاز: $ip  (أمر الاتصال: adb connect $ip:5555)"
+                  } else {
+                      tvIp.text = "IP الجهاز: غير متصل بالشبكة (يرجى وصل الوايفاي أو كابل الشبكة)"
+                  }
+              }
+
+              private fun startDeepScan() {
+                  isScanning = true
+                  candidateIndex = 0
+                  candidateActivities.clear()
+                  btnStartScan.isEnabled = false
+                  tvStatus.text = "جاري تفتيش جميع ملفات وصفحات النظام..."
+
+                  Thread {
+                      val directIntents = listOf(
+                          Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS),
+                          Intent("android.settings.APPLICATION_DEVELOPMENT_SETTINGS"),
+                          Intent(Settings.ACTION_DEVICE_INFO_SETTINGS),
+                          Intent(Settings.ACTION_SETTINGS)
+                      )
+
+                      for (intent in directIntents) {
+                          intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                          if (intent.resolveActivity(packageManager) != null) {
+                              val comp = intent.resolveActivity(packageManager)
+                              if (comp != null) {
+                                  candidateActivities.add(Pair(comp.packageName, comp.className))
+                              }
+                          }
+                      }
+
+                      val knownOemTargets = listOf(
+                          Pair("com.android.settings", "com.android.settings.DevelopmentSettings"),
+                          Pair("com.android.settings", "com.android.settings.Settings$DevelopmentSettingsDashboardActivity"),
+                          Pair("com.android.tv.settings", "com.android.tv.settings.development.DevelopmentActivity"),
+                          Pair("com.cvte.tv.provision", "com.cvte.tv.provision.MainActivity"),
+                          Pair("com.mstar.tv.tvplayer.ui", "com.mstar.tv.tvplayer.ui.RootActivity"),
+                          Pair("com.hisilicon.tvui", "com.hisilicon.tvui.MainActivity"),
+                          Pair("com.realtek.tv.tvplayer", "com.realtek.tv.tvplayer.MainActivity")
+                      )
+
+                      for (target in knownOemTargets) {
+                          candidateActivities.add(target)
+                      }
+
+                      val flags = PackageManager.GET_ACTIVITIES or PackageManager.MATCH_DISABLED_COMPONENTS
+                      val installedPackages = try {
+                          packageManager.getInstalledPackages(flags)
+                      } catch (e: Exception) {
+                          emptyList()
+                      }
+
+                      for (pkg in installedPackages) {
+                          if (pkg.packageName == packageName) continue
+                          val activities = pkg.activities ?: continue
+
+                          for (act in activities) {
+                              if (!act.exported) continue
+
+                              mainHandler.post {
+                                  tvCurrentActivity.text = "فحص: ${act.name}"
+                              }
+                              Thread.sleep(25)
+
+                              val fullName = "${pkg.packageName}.${act.name}".lowercase(Locale.ROOT)
+                              if (fullName.contains("adb") ||
+                                  fullName.contains("debug") ||
+                                  fullName.contains("develop") ||
+                                  fullName.contains("devoption") ||
+                                  fullName.contains("uart") ||
+                                  fullName.contains("factory") ||
+                                  fullName.contains("engmode")
+                              ) {
+                                  val pair = Pair(pkg.packageName, act.name)
+                                  if (!candidateActivities.contains(pair)) {
+                                      candidateActivities.add(pair)
+                                  }
+                              }
+                          }
+                      }
+
+                      mainHandler.post {
+                          btnStartScan.isEnabled = true
+                          if (candidateActivities.isNotEmpty()) {
+                              tvStatus.text = "تم العثور على ${candidateActivities.size} صفحة لتفعيل ADB ومزايا المطورين!"
+                              btnStartScan.text = "فتح الصفحة الأولى"
+                              launchNextCandidate()
+                          } else {
+                              tvStatus.text = "لم يتم العثور على صفحات مفتوحة، يمكنك المحاولة مجدداً."
+                              btnStartScan.text = "إعادة الفحص"
+                              isScanning = false
+                          }
+                      }
+                  }.start()
+              }
+
+              private fun launchNextCandidate() {
+                  if (candidateIndex < candidateActivities.size) {
+                      val target = candidateActivities[candidateIndex]
+                      candidateIndex++
+
+                      tvCurrentActivity.text = "فتح الصفحة [${candidateIndex}/${candidateActivities.size}]:\n${target.second}"
+                      tvStatus.text = "إذا لم تكن هذه الصفحة المطلوبة، اضغط زر الرجوع (Back) بالماوس ثم اضغط الزر لتجربة الصفحة التالية."
+
+                      try {
+                          val intent = Intent().apply {
+                              component = ComponentName(target.first, target.second)
+                              addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                          }
+                          startActivity(intent)
+                          overridePendingTransition(0, 0)
+                      } catch (e: Exception) {
+                          launchNextCandidate()
+                      }
+                  } else {
+                      tvStatus.text = "تم تجربة جميع الصفحات المتاحة في النظام!"
+                      btnStartScan.text = "إعادة الفحص من البداية"
+                      isScanning = false
+                      candidateIndex = 0
+                  }
+              }
+
+              private fun getActiveIpAddress(): String {
+                  try {
+                      val interfaces = NetworkInterface.getNetworkInterfaces()
+                      while (interfaces.hasMoreElements()) {
+                          val intf = interfaces.nextElement()
+                          if (intf.isLoopback || !intf.isUp) continue
+                          val addrs = intf.inetAddresses
+                          while (addrs.hasMoreElements()) {
+                              val addr = addrs.nextElement()
+                              if (!addr.isLoopbackAddress && addr is Inet4Address) {
+                                  return addr.hostAddress ?: ""
+                              }
+                          }
+                      }
+                  } catch (ignored: Exception) {}
+                  return ""
+              }
+          }
+          EOF_KOTLIN
+
+      - name: Build Debug APK
+        run: gradle assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: TV-ADB-Unlocker-APK
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 7
